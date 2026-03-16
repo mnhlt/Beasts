@@ -17,13 +17,41 @@ public partial class Beasts : BaseSettingsPlugin<BeastsSettings>
     public override void OnLoad()
     {
         Settings.FetchBeastPrices.OnPressed += async () => await FetchPrices();
-        Task.Run(FetchPrices);
+        Task.Run(InitializeAsync);
+    }
+
+    private async Task InitializeAsync()
+    {
+        try
+        {
+            DebugWindow.LogMsg("Fetching league list from PoeNinja...");
+            var leagues = await PoeNinja.GetLeagues();
+            Settings.AvailableLeagues = leagues;
+
+            if (string.IsNullOrEmpty(Settings.SelectedLeague) && leagues.Count > 0)
+            {
+                Settings.SelectedLeague = leagues[0];
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugWindow.LogError($"Failed to fetch league list: {ex.Message}");
+        }
+
+        await FetchPrices();
     }
 
     private async Task FetchPrices()
     {
-        DebugWindow.LogMsg("Fetching Beast Prices from PoeNinja...");
-        var prices = await PoeNinja.GetBeastsPrices();
+        var league = Settings.SelectedLeague;
+        if (string.IsNullOrEmpty(league))
+        {
+            DebugWindow.LogMsg("No league selected, skipping price fetch.");
+            return;
+        }
+
+        DebugWindow.LogMsg($"Fetching Beast Prices from PoeNinja for league: {league}...");
+        var prices = await PoeNinja.GetBeastsPrices(league);
         foreach (var beast in BeastsDatabase.AllBeasts)
         {
             Settings.BeastPrices[beast.DisplayName] = prices.TryGetValue(beast.DisplayName, out var price) ? price : -1;

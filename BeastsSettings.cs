@@ -16,6 +16,9 @@ public class BeastsSettings : ISettings
     public List<Beast> Beasts { get; set; } = new();
     public Dictionary<string, float> BeastPrices { get; set; } = new();
     public DateTime LastUpdate { get; set; } = DateTime.MinValue;
+    public string SelectedLeague { get; set; } = "";
+
+    [JsonIgnore] public List<string> AvailableLeagues { get; set; } = new();
 
     public BeastsSettings()
     {
@@ -120,6 +123,40 @@ public class BeastsSettings : ISettings
                 ImGui.Text(LastUpdate.ToString("HH:mm:ss"));
             }
         };
+
+        LeaguePicker = new CustomNode
+        {
+            DrawDelegate = () =>
+            {
+                if (AvailableLeagues.Count == 0)
+                {
+                    ImGui.TextDisabled("League list loading...");
+                    return;
+                }
+
+                var currentIndex = AvailableLeagues.IndexOf(SelectedLeague);
+                if (currentIndex < 0) currentIndex = 0;
+
+                ImGui.SetNextItemWidth(256);
+                if (ImGui.BeginCombo("League", AvailableLeagues[currentIndex]))
+                {
+                    for (var i = 0; i < AvailableLeagues.Count; i++)
+                    {
+                        var isSelected = i == currentIndex;
+                        if (ImGui.Selectable(AvailableLeagues[i], isSelected))
+                        {
+                            SelectedLeague = AvailableLeagues[i];
+                        }
+
+                        if (isSelected)
+                        {
+                            ImGui.SetItemDefaultFocus();
+                        }
+                    }
+                    ImGui.EndCombo();
+                }
+            }
+        };
     }
 
     public ToggleNode Enable { get; set; } = new ToggleNode(false);
@@ -131,6 +168,8 @@ public class BeastsSettings : ISettings
     public ToggleNode ShowCapturedBeastsInStash { get; set; } = new ToggleNode(true);
     
     public ToggleNode ShowBestiaryPanel { get; set; } = new ToggleNode(true);
+
+    [JsonIgnore] public CustomNode LeaguePicker { get; set; }
 
     public ButtonNode FetchBeastPrices { get; set; } = new ButtonNode();
 

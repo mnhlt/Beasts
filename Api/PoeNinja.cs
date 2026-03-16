@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -8,7 +8,18 @@ namespace Beasts.Api;
 
 public static class PoeNinja
 {
-    private static readonly string PoeNinjaUrl = "https://poe.ninja/api/data/itemoverview?league=Keepers&type=Beast";
+    private static readonly string IndexStateUrl = "https://poe.ninja/poe1/api/data/index-state";
+    private static readonly string PoeNinjaUrlTemplate = "https://poe.ninja/api/data/itemoverview?league={0}&type=Beast";
+
+    private class EconomyLeague
+    {
+        [JsonProperty("name")] public string Name;
+    }
+
+    private class IndexStateResponse
+    {
+        [JsonProperty("economyLeagues")] public List<EconomyLeague> EconomyLeagues;
+    }
 
     private class PoeNinjaLine
     {
@@ -21,10 +32,22 @@ public static class PoeNinja
         [JsonProperty("lines")] public List<PoeNinjaLine> Lines;
     }
 
-    public static async Task<Dictionary<string, float>> GetBeastsPrices()
+    public static async Task<List<string>> GetLeagues()
     {
         using var httpClient = new HttpClient();
-        var response = await httpClient.GetAsync(PoeNinjaUrl);
+        var response = await httpClient.GetAsync(IndexStateUrl);
+        if (!response.IsSuccessStatusCode) throw new HttpRequestException("Failed to get poe.ninja index-state");
+
+        var json = await response.Content.ReadAsStringAsync();
+        var indexState = JsonConvert.DeserializeObject<IndexStateResponse>(json);
+        return indexState.EconomyLeagues.Select(l => l.Name).ToList();
+    }
+
+    public static async Task<Dictionary<string, float>> GetBeastsPrices(string league)
+    {
+        using var httpClient = new HttpClient();
+        var url = string.Format(PoeNinjaUrlTemplate, league);
+        var response = await httpClient.GetAsync(url);
         if (!response.IsSuccessStatusCode) throw new HttpRequestException("Failed to get poe.ninja response");
 
         var json = await response.Content.ReadAsStringAsync();
